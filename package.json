@@ -1,0 +1,19 @@
+{
+  "name": "node-redis-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tushar1907/NODE-Redis-App.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tushar1907/NODE-Redis-App/issues"
+  },
+  "homepage": "https://github.com/tushar1907/NODE-Redis-App#readme"
+}
