@@ -15,5 +15,16 @@
   "bugs": {
     "url": "https://github.com/tushar1907/NODE-Redis-App/issues"
   },
-  "homepage": "https://github.com/tushar1907/NODE-Redis-App#readme"
+  "homepage": "https://github.com/tushar1907/NODE-Redis-App#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.3",
+    "express-handlebars": "^3.0.0",
+    "js-data": "^3.0.4",
+    "jsonschema": "^1.2.4",
+    "method-override": "^3.0.0",
+    "path": "^0.12.7",
+    "redis": "^2.8.0",
+    "uuid": "^3.3.2"
+  }
 }
