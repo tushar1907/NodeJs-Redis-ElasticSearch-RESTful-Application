@@ -35,9 +35,9 @@ app.use(methodOverride('method'));
 
 
 //Search Page
-app.get('/user/get/:id', (req, res, next) => {
+app.get('/user/:id', (req, res, next) => {
     console.log(req.params.id)
-        client.hgetall(req.params.id,(err, reply)=>{
+        client.get(req.params.id,(err, reply)=>{
             console.log("Reply : " + reply);
             console.log("error : " + err);
             if (err) res.json(err);
@@ -45,8 +45,7 @@ app.get('/user/get/:id', (req, res, next) => {
         });
 });
 
-app.post('/user/search', function (req, res, next) {
-    console.log("Tushar");
+app.post('/user/search', function (req, res, next) {    
     let id = req.body.id;
 
     client.hgetall(id, (err, obj) => {
@@ -78,7 +77,7 @@ app.post('/user/add', (req, res, next) => {
     }
 })
 
-app.delete('/user/delete/:id',(req,res,next)=>{
+app.delete('/user/:id',(req,res,next)=>{
     console.log(req.params.id)
         client.del(req.params.id,(err, reply)=>{
             console.log("Reply : " + reply);
@@ -88,8 +87,24 @@ app.delete('/user/delete/:id',(req,res,next)=>{
         })
 })
 
-app.put('/user/update/:id',(req,res,next)=>{
-    console.log("Tushar");
+app.put('/user/:id',(req,res,next)=>{
+    let id = req.params.id;
+    console.log(id)
+    console.log(req.body)
+    client.get(id, (err, obj) => {
+        console.log(obj)
+        if (!obj) {
+            res.status(500).send({ "error": err})
+        }
+        else {
+            client.set(id, JSON.stringify(req.body), function (err, reply) {
+                console.log("Reply : " + reply);
+                console.log("Reply : " + err);
+                if (err) res.send(err);
+                else res.send(reply);
+            });
+        }
+    });
 })
 
 
