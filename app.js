@@ -37,31 +37,31 @@ app.use(methodOverride('method'));
 //Search Page
 app.get('/user/:id', (req, res, next) => {
     console.log(req.params.id)
-        client.get(req.params.id,(err, reply)=>{
-            console.log("Reply : " + reply);
-            console.log("error : " + err);
-            if (err) res.json(err);
-            else res.json(reply);
-        });
-});
-
-app.post('/user/search', function (req, res, next) {    
-    let id = req.body.id;
-
-    client.hgetall(id, (err, obj) => {
-        if (!obj) {
-            res.render('searchusers', {
-                error: 'User does no exist'
-            })
-        }
-        else {
-            obj.id = id
-            res.status(200).send({
-                "obj": obj
-            })
-        }
+    client.get(req.params.id, (err, reply) => {
+        console.log("Reply : " + reply);
+        console.log("Error : " + err);
+        if (err) res.json(err);
+        else res.json(reply);
     });
 });
+
+// app.post('/user/search', function (req, res, next) {    
+//     let id = req.body.id;
+
+//     client.hgetall(id, (err, obj) => {
+//         if (!obj) {
+//             res.render('searchusers', {
+//                 error: 'User does no exist'
+//             })
+//         }
+//         else {
+//             obj.id = id
+//             res.status(200).send({
+//                 "obj": obj
+//             })
+//         }
+//     });
+// });
 
 app.post('/user/add', (req, res, next) => {
     console.log(v.validate(req.body, schema).errors);
@@ -70,39 +70,41 @@ app.post('/user/add', (req, res, next) => {
         console.log(uuidSave);
         client.set(uuidSave, JSON.stringify(req.body), function (err, reply) {
             console.log("Reply : " + reply);
-            console.log("Reply : " + err);
+            console.log("Error : " + err);
             if (err) res.send(err);
             else res.send(reply);
         });
     }
 })
 
-app.delete('/user/:id',(req,res,next)=>{
+app.delete('/user/:id', (req, res, next) => {
     console.log(req.params.id)
-        client.del(req.params.id,(err, reply)=>{
-            console.log("Reply : " + reply);
-            console.log("error : " + err);
-            if (err) res.json(err);
-            else res.json(reply);
-        })
+    client.del(req.params.id, (err, reply) => {
+        console.log("Reply : " + reply);
+        console.log("Error : " + err);
+        if (err) res.json(err);
+        else res.json(reply);
+    })
 })
 
-app.put('/user/:id',(req,res,next)=>{
+app.put('/user/:id', (req, res, next) => {
     let id = req.params.id;
     console.log(id)
     console.log(req.body)
     client.get(id, (err, obj) => {
         console.log(obj)
         if (!obj) {
-            res.status(500).send({ "error": err})
+            res.status(500).send({ "error": err })
         }
         else {
-            client.set(id, JSON.stringify(req.body), function (err, reply) {
-                console.log("Reply : " + reply);
-                console.log("Reply : " + err);
-                if (err) res.send(err);
-                else res.send(reply);
-            });
+            if (v.validate(req.body, schema).errors.length == 0) {                
+                client.set(id, JSON.stringify(req.body), function (err, reply) {
+                    console.log("Reply : " + reply);
+                    console.log("Error : " + err);
+                    if (err) res.send(err);
+                    else res.send(reply);
+                });
+            }
         }
     });
 })
