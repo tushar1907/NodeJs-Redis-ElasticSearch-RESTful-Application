@@ -18,8 +18,7 @@ client.on('connect', () => {
     console.log("Connected to redis");
 });
 
-//Set routes
-app.use('/auth', authRoutes);
+
 //Set Port
 const port = 3000;
 
@@ -36,6 +35,9 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 //mwthodOverride
 app.use(methodOverride('method'));
+
+//Set routes
+app.use('/auth', authRoutes);
 
 app.get('/',(req,res) => {
 
