@@ -7,7 +7,7 @@ router.get('/google',passport.authenticate('google',{
     scope:['profile']
 }))
 
-router.get('/google/redirect',(req,res)=>{
+router.get('/google/redirect',passport.authenticate('google'),(req,res)=>{
     res.send({
         "MSG": "This is a successfull redirect"
     })
