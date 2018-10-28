@@ -41,48 +41,48 @@ app.use(methodOverride('method'));
 //Set routes
 app.use('/auth', authRoutes);
 
-app.get('/',(req,res) => {
+app.get('/', (req, res) => {
 
 })
 
 //token generation
-app.post('/api/login',(req,res)=>{
+app.post('/api/login', (req, res) => {
     //auth user
     const token = jwt.sign({
-        exp: Math.floor(Date.now() / 1000) + (60),
-        data: 'foobar'
-      },"my_secret_key");
+        exp: Math.floor(Date.now() / 1000) + (60*5)        
+    }, "my_secret_key");
 
     res.send({
         token: token
-    })  
+    })
 
 })
+
 //Search Page
-app.get('/plan/:id', ensureToken , (req, res, next) => {
-
-    console.log(req.params.id)
-    client.get(req.params.id, (err, reply) => {
-        console.log("Reply : " + reply);
-        console.log("Error : " + err);
-        if (err) res.json(err);
-        else res.json(reply);
-    });
+app.get('/plan/:id', ensureToken, (req, res, next) => {
+    jwt.verify(req.token, 'my_secret_key', (err, data) => {
+        if (err) {
+            res.sendStatus(403)
+        }
+        else {           
+            client.get(req.params.id, (err, reply) => {                
+                if (err) res.json(err);
+                else res.json(reply);
+            });
+        }
+    })
 });
-
-
-
 function ensureToken(req, res, next) {
     const bearerHeader = req.headers["authorization"];
     if (typeof bearerHeader !== 'undefined') {
-      const bearer = bearerHeader.split(" ");
-      const bearerToken = bearer[1];
-      req.token = bearerToken;
-      next();
+        const bearer = bearerHeader.split(" ");
+        const bearerToken = bearer[1];
+        req.token = bearerToken;
+        next();
     } else {
-      res.sendStatus(403);
+        res.sendStatus(403);
     }
-  }
+}
 
 app.post('/plan', (req, res, next) => {
     console.log(v.validate(req.body, schema));
@@ -93,12 +93,12 @@ app.post('/plan', (req, res, next) => {
             console.log("Reply : " + reply);
             console.log("Error : " + err);
             if (err) res.send(err);
-            else res.send({"reply":reply,"result": "Result successfully posted"});;
+            else res.send({ "reply": reply, "result": "Result successfully posted" });;
         });
     }
-    else{
+    else {
         res.send({
-            "error":"Jason is not validated with schema"
+            "error": "Jason is not validated with schema"
         })
     }
 })
@@ -109,7 +109,7 @@ app.delete('/plan/:id', (req, res, next) => {
         console.log("Reply : " + reply);
         console.log("Error : " + err);
         if (err) res.send(err);
-        else res.send({"reply":reply,"result": "Result successfully deleted"});;
+        else res.send({ "reply": reply, "result": "Result successfully deleted" });;
     })
 })
 
@@ -123,17 +123,17 @@ app.put('/plan/:id', (req, res, next) => {
             res.status(500).send({ "error": err })
         }
         else {
-            if (v.validate(req.body, schema).errors.length == 0) {                
+            if (v.validate(req.body, schema).errors.length == 0) {
                 client.set(id, JSON.stringify(req.body), function (err, reply) {
                     console.log("Reply : " + reply);
                     console.log("Error : " + err);
                     if (err) res.send(err);
-                    else res.send({"reply":reply,"result": "Result successfully updated"});
+                    else res.send({ "reply": reply, "result": "Result successfully updated" });
                 });
             }
-            else{
+            else {
                 res.send({
-                    "error":"Json is not validated with schema"
+                    "error": "Json is not validated with schema"
                 })
             }
         }
@@ -146,13 +146,13 @@ app.listen(port, () => {
 })
 
 
-    const schema = {
-        "definitions": {},
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "$id": "http://example.com/root.json",
-        "type": "object",
-        "title": "The Root Schema",
-        "required": [
+const schema = {
+    "definitions": {},
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://example.com/root.json",
+    "type": "object",
+    "title": "The Root Schema",
+    "required": [
         "planCostShares",
         "linkedPlanServices",
         "_org",
@@ -160,162 +160,31 @@ app.listen(port, () => {
         "objectType",
         "planType",
         "creationDate"
-        ],
-        "properties": {
+    ],
+    "properties": {
         "planCostShares": {
             "$id": "#/properties/planCostShares",
             "type": "object",
             "title": "The Plancostshares Schema",
             "required": [
-            "deductible",
-            "_org",
-            "copay",
-            "objectId",
-            "objectType"
-            ],
-            "properties": {
-            "deductible": {
-                "$id": "#/properties/planCostShares/properties/deductible",
-                "type": "integer",
-                "title": "The Deductible Schema",
-                "default": 0,
-                "examples": [
-                2000
-                ]
-            },
-            "_org": {
-                "$id": "#/properties/planCostShares/properties/_org",
-                "type": "string",
-                "title": "The _org Schema",
-                "default": "",
-                "examples": [
-                "example.com"
-                ],
-                "pattern": "^(.*)$"
-            },
-            "copay": {
-                "$id": "#/properties/planCostShares/properties/copay",
-                "type": "integer",
-                "title": "The Copay Schema",
-                "default": 0,
-                "examples": [
-                10
-                ]
-            },
-            "objectId": {
-                "$id": "#/properties/planCostShares/properties/objectId",
-                "type": "string",
-                "title": "The Objectid Schema",
-                "default": "",
-                "examples": [
-                "1234vxc2324sdf"
-                ],
-                "pattern": "^(.*)$"
-            },
-            "objectType": {
-                "$id": "#/properties/planCostShares/properties/objectType",
-                "type": "string",
-                "title": "The Objecttype Schema",
-                "default": "",
-                "examples": [
-                "membercostshare"
-                ],
-                "pattern": "^(.*)$"
-            }
-            }
-        },
-        "linkedPlanServices": {
-            "$id": "#/properties/linkedPlanServices",
-            "type": "array",
-            "title": "The Linkedplanservices Schema",
-            "items": {
-            "$id": "#/properties/linkedPlanServices/items",
-            "type": "object",
-            "title": "The Items Schema",
-            "required": [
-                "linkedService",
-                "planserviceCostShares",
+                "deductible",
                 "_org",
+                "copay",
                 "objectId",
                 "objectType"
             ],
             "properties": {
-                "linkedService": {
-                "$id": "#/properties/linkedPlanServices/items/properties/linkedService",
-                "type": "object",
-                "title": "The Linkedservice Schema",
-                "required": [
-                    "_org",
-                    "objectId",
-                    "objectType",
-                    "name"
-                ],
-                "properties": {
-                    "_org": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/_org",
-                    "type": "string",
-                    "title": "The _org Schema",
-                    "default": "",
-                    "examples": [
-                        "example.com"
-                    ],
-                    "pattern": "^(.*)$"
-                    },
-                    "objectId": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/objectId",
-                    "type": "string",
-                    "title": "The Objectid Schema",
-                    "default": "",
-                    "examples": [
-                        "1234520xvc30asdf"
-                    ],
-                    "pattern": "^(.*)$"
-                    },
-                    "objectType": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/objectType",
-                    "type": "string",
-                    "title": "The Objecttype Schema",
-                    "default": "",
-                    "examples": [
-                        "service"
-                    ],
-                    "pattern": "^(.*)$"
-                    },
-                    "name": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/name",
-                    "type": "string",
-                    "title": "The Name Schema",
-                    "default": "",
-                    "examples": [
-                        "Yearly physical"
-                    ],
-                    "pattern": "^(.*)$"
-                    }
-                }
-                },
-                "planserviceCostShares": {
-                "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares",
-                "type": "object",
-                "title": "The Planservicecostshares Schema",
-                "required": [
-                    "deductible",
-                    "_org",
-                    "copay",
-                    "objectId",
-                    "objectType"
-                ],
-                "properties": {
-                    "deductible": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/deductible",
+                "deductible": {
+                    "$id": "#/properties/planCostShares/properties/deductible",
                     "type": "integer",
                     "title": "The Deductible Schema",
                     "default": 0,
                     "examples": [
-                        10
+                        2000
                     ]
-                    },
-                    "_org": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/_org",
+                },
+                "_org": {
+                    "$id": "#/properties/planCostShares/properties/_org",
                     "type": "string",
                     "title": "The _org Schema",
                     "default": "",
@@ -323,28 +192,28 @@ app.listen(port, () => {
                         "example.com"
                     ],
                     "pattern": "^(.*)$"
-                    },
-                    "copay": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/copay",
+                },
+                "copay": {
+                    "$id": "#/properties/planCostShares/properties/copay",
                     "type": "integer",
                     "title": "The Copay Schema",
                     "default": 0,
                     "examples": [
-                        175
+                        10
                     ]
-                    },
-                    "objectId": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/objectId",
+                },
+                "objectId": {
+                    "$id": "#/properties/planCostShares/properties/objectId",
                     "type": "string",
                     "title": "The Objectid Schema",
                     "default": "",
                     "examples": [
-                        "1234512xvc1314asdfs"
+                        "1234vxc2324sdf"
                     ],
                     "pattern": "^(.*)$"
-                    },
-                    "objectType": {
-                    "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/objectType",
+                },
+                "objectType": {
+                    "$id": "#/properties/planCostShares/properties/objectType",
                     "type": "string",
                     "title": "The Objecttype Schema",
                     "default": "",
@@ -352,40 +221,171 @@ app.listen(port, () => {
                         "membercostshare"
                     ],
                     "pattern": "^(.*)$"
-                    }
-                }
-                },
-                "_org": {
-                "$id": "#/properties/linkedPlanServices/items/properties/_org",
-                "type": "string",
-                "title": "The _org Schema",
-                "default": "",
-                "examples": [
-                    "example.com"
-                ],
-                "pattern": "^(.*)$"
-                },
-                "objectId": {
-                "$id": "#/properties/linkedPlanServices/items/properties/objectId",
-                "type": "string",
-                "title": "The Objectid Schema",
-                "default": "",
-                "examples": [
-                    "27283xvx9asdff"
-                ],
-                "pattern": "^(.*)$"
-                },
-                "objectType": {
-                "$id": "#/properties/linkedPlanServices/items/properties/objectType",
-                "type": "string",
-                "title": "The Objecttype Schema",
-                "default": "",
-                "examples": [
-                    "planservice"
-                ],
-                "pattern": "^(.*)$"
                 }
             }
+        },
+        "linkedPlanServices": {
+            "$id": "#/properties/linkedPlanServices",
+            "type": "array",
+            "title": "The Linkedplanservices Schema",
+            "items": {
+                "$id": "#/properties/linkedPlanServices/items",
+                "type": "object",
+                "title": "The Items Schema",
+                "required": [
+                    "linkedService",
+                    "planserviceCostShares",
+                    "_org",
+                    "objectId",
+                    "objectType"
+                ],
+                "properties": {
+                    "linkedService": {
+                        "$id": "#/properties/linkedPlanServices/items/properties/linkedService",
+                        "type": "object",
+                        "title": "The Linkedservice Schema",
+                        "required": [
+                            "_org",
+                            "objectId",
+                            "objectType",
+                            "name"
+                        ],
+                        "properties": {
+                            "_org": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/_org",
+                                "type": "string",
+                                "title": "The _org Schema",
+                                "default": "",
+                                "examples": [
+                                    "example.com"
+                                ],
+                                "pattern": "^(.*)$"
+                            },
+                            "objectId": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/objectId",
+                                "type": "string",
+                                "title": "The Objectid Schema",
+                                "default": "",
+                                "examples": [
+                                    "1234520xvc30asdf"
+                                ],
+                                "pattern": "^(.*)$"
+                            },
+                            "objectType": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/objectType",
+                                "type": "string",
+                                "title": "The Objecttype Schema",
+                                "default": "",
+                                "examples": [
+                                    "service"
+                                ],
+                                "pattern": "^(.*)$"
+                            },
+                            "name": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/linkedService/properties/name",
+                                "type": "string",
+                                "title": "The Name Schema",
+                                "default": "",
+                                "examples": [
+                                    "Yearly physical"
+                                ],
+                                "pattern": "^(.*)$"
+                            }
+                        }
+                    },
+                    "planserviceCostShares": {
+                        "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares",
+                        "type": "object",
+                        "title": "The Planservicecostshares Schema",
+                        "required": [
+                            "deductible",
+                            "_org",
+                            "copay",
+                            "objectId",
+                            "objectType"
+                        ],
+                        "properties": {
+                            "deductible": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/deductible",
+                                "type": "integer",
+                                "title": "The Deductible Schema",
+                                "default": 0,
+                                "examples": [
+                                    10
+                                ]
+                            },
+                            "_org": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/_org",
+                                "type": "string",
+                                "title": "The _org Schema",
+                                "default": "",
+                                "examples": [
+                                    "example.com"
+                                ],
+                                "pattern": "^(.*)$"
+                            },
+                            "copay": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/copay",
+                                "type": "integer",
+                                "title": "The Copay Schema",
+                                "default": 0,
+                                "examples": [
+                                    175
+                                ]
+                            },
+                            "objectId": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/objectId",
+                                "type": "string",
+                                "title": "The Objectid Schema",
+                                "default": "",
+                                "examples": [
+                                    "1234512xvc1314asdfs"
+                                ],
+                                "pattern": "^(.*)$"
+                            },
+                            "objectType": {
+                                "$id": "#/properties/linkedPlanServices/items/properties/planserviceCostShares/properties/objectType",
+                                "type": "string",
+                                "title": "The Objecttype Schema",
+                                "default": "",
+                                "examples": [
+                                    "membercostshare"
+                                ],
+                                "pattern": "^(.*)$"
+                            }
+                        }
+                    },
+                    "_org": {
+                        "$id": "#/properties/linkedPlanServices/items/properties/_org",
+                        "type": "string",
+                        "title": "The _org Schema",
+                        "default": "",
+                        "examples": [
+                            "example.com"
+                        ],
+                        "pattern": "^(.*)$"
+                    },
+                    "objectId": {
+                        "$id": "#/properties/linkedPlanServices/items/properties/objectId",
+                        "type": "string",
+                        "title": "The Objectid Schema",
+                        "default": "",
+                        "examples": [
+                            "27283xvx9asdff"
+                        ],
+                        "pattern": "^(.*)$"
+                    },
+                    "objectType": {
+                        "$id": "#/properties/linkedPlanServices/items/properties/objectType",
+                        "type": "string",
+                        "title": "The Objecttype Schema",
+                        "default": "",
+                        "examples": [
+                            "planservice"
+                        ],
+                        "pattern": "^(.*)$"
+                    }
+                }
             }
         },
         "_org": {
@@ -394,7 +394,7 @@ app.listen(port, () => {
             "title": "The _org Schema",
             "default": "",
             "examples": [
-            "example.com"
+                "example.com"
             ],
             "pattern": "^(.*)$"
         },
@@ -404,7 +404,7 @@ app.listen(port, () => {
             "title": "The Objectid Schema",
             "default": "",
             "examples": [
-            "12xvxc345ssdsds"
+                "12xvxc345ssdsds"
             ],
             "pattern": "^(.*)$"
         },
@@ -414,7 +414,7 @@ app.listen(port, () => {
             "title": "The Objecttype Schema",
             "default": "",
             "examples": [
-            "plan"
+                "plan"
             ],
             "pattern": "^(.*)$"
         },
@@ -424,7 +424,7 @@ app.listen(port, () => {
             "title": "The Plantype Schema",
             "default": "",
             "examples": [
-            "inNetwork"
+                "inNetwork"
             ],
             "pattern": "^(.*)$"
         },
@@ -434,9 +434,9 @@ app.listen(port, () => {
             "title": "The Creationdate Schema",
             "default": "",
             "examples": [
-            "12-12-2017"
+                "12-12-2017"
             ],
             "pattern": "^(.*)$"
         }
-        }
     }
+}
