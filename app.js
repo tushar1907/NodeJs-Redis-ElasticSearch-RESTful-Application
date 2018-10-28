@@ -9,6 +9,8 @@ var Validator = require('jsonschema').Validator;
 const uuid = require('uuid');
 // const schema = require('schema.js');
 var v = new Validator();
+const authRoutes = require('./routes/app-routes');
+
 
 let client = redis.createClient();
 
@@ -16,7 +18,8 @@ client.on('connect', () => {
     console.log("Connected to redis");
 });
 
-
+//Set routes
+app.use('/auth', authRoutes);
 //Set Port
 const port = 3000;
 
@@ -34,6 +37,9 @@ app.use(bodyParser.urlencoded({ extended: false }));
 //mwthodOverride
 app.use(methodOverride('method'));
 
+app.get('/',(req,res) => {
+
+})
 
 //Search Page
 app.get('/plan/:id', (req, res, next) => {
