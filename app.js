@@ -10,6 +10,8 @@ const uuid = require('uuid');
 // const schema = require('schema.js');
 var v = new Validator();
 const authRoutes = require('./routes/app-routes');
+const passportSetup = require('./config/passport-setup')
+const jwt = require('jsonwebtoken');
 
 
 let client = redis.createClient();
@@ -43,8 +45,22 @@ app.get('/',(req,res) => {
 
 })
 
+//token generation
+app.post('/api/login',(req,res)=>{
+    //auth user
+    const token = jwt.sign({
+        exp: Math.floor(Date.now() / 1000) + (60),
+        data: 'foobar'
+      },"my_secret_key");
+
+    res.send({
+        token: token
+    })  
+
+})
 //Search Page
-app.get('/plan/:id', (req, res, next) => {
+app.get('/plan/:id', ensureToken , (req, res, next) => {
+
     console.log(req.params.id)
     client.get(req.params.id, (err, reply) => {
         console.log("Reply : " + reply);
@@ -53,6 +69,20 @@ app.get('/plan/:id', (req, res, next) => {
         else res.json(reply);
     });
 });
+
+
+
+function ensureToken(req, res, next) {
+    const bearerHeader = req.headers["authorization"];
+    if (typeof bearerHeader !== 'undefined') {
+      const bearer = bearerHeader.split(" ");
+      const bearerToken = bearer[1];
+      req.token = bearerToken;
+      next();
+    } else {
+      res.sendStatus(403);
+    }
+  }
 
 app.post('/plan', (req, res, next) => {
     console.log(v.validate(req.body, schema));

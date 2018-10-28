@@ -1,8 +1,10 @@
 const router = require('express').Router();
 
+const passport = require('passport');
+
 //auth login
-router.get('/google',(req,res)=>{
-    res.send({'message':"Login with Google stared !"})
-})
+router.get('/google/redirect',passport.authenticate('google',{
+    scope:['profile']
+}))
 
 module.exports = router;
