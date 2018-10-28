@@ -7,11 +7,11 @@ const methodOverride = require('method-override');
 const redis = require('redis');
 var Validator = require('jsonschema').Validator;
 const uuid = require('uuid');
-// const schema = require('schema.js');
 var v = new Validator();
 const authRoutes = require('./routes/app-routes');
 const passportSetup = require('./config/passport-setup')
 const jwt = require('jsonwebtoken');
+
 
 
 let client = redis.createClient();
