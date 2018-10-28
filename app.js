@@ -36,7 +36,7 @@ app.use(methodOverride('method'));
 
 
 //Search Page
-app.get('/user/:id', (req, res, next) => {
+app.get('/plan/:id', (req, res, next) => {
     console.log(req.params.id)
     client.get(req.params.id, (err, reply) => {
         console.log("Reply : " + reply);
@@ -55,7 +55,7 @@ app.post('/plan', (req, res, next) => {
             console.log("Reply : " + reply);
             console.log("Error : " + err);
             if (err) res.send(err);
-            else res.send(reply);
+            else res.send({"reply":reply,"result": "Result successfully posted"});;
         });
     }
     else{
@@ -65,17 +65,17 @@ app.post('/plan', (req, res, next) => {
     }
 })
 
-app.delete('/user/:id', (req, res, next) => {
+app.delete('/plan/:id', (req, res, next) => {
     console.log(req.params.id)
     client.del(req.params.id, (err, reply) => {
         console.log("Reply : " + reply);
         console.log("Error : " + err);
-        if (err) res.json(err);
-        else res.json(reply);
+        if (err) res.send(err);
+        else res.send({"reply":reply,"result": "Result successfully deleted"});;
     })
 })
 
-app.put('/user/:id', (req, res, next) => {
+app.put('/plan/:id', (req, res, next) => {
     let id = req.params.id;
     console.log(id)
     console.log(req.body)
@@ -90,7 +90,7 @@ app.put('/user/:id', (req, res, next) => {
                     console.log("Reply : " + reply);
                     console.log("Error : " + err);
                     if (err) res.send(err);
-                    else res.send(reply);
+                    else res.send({"reply":reply,"result": "Result successfully updated"});
                 });
             }
             else{
