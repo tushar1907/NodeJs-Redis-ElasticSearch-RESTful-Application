@@ -42,7 +42,7 @@ app.use(methodOverride('method'));
 app.use('/auth', authRoutes);
 
 app.get('/', (req, res) => {
-
+    console.log("Tushar 1")
 })
 
 
@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
 app.post('/api/login', (req, res) => {
     //auth user
     const token = jwt.sign({
-        exp: Math.floor(Date.now() / 1000) + (60*5)        
+        exp: Math.floor(Date.now() / 1000) + (60 * 60)
     }, "my_secret_key");
 
     res.send({
@@ -62,29 +62,20 @@ app.post('/api/login', (req, res) => {
 
 //Search Page
 app.get('/plan/:id', ensureToken, (req, res, next) => {
+    console.log("Tushar 2")
     jwt.verify(req.token, 'my_secret_key', (err, data) => {
         if (err) {
             res.sendStatus(403)
         }
-        else {           
-            client.get(req.params.id, (err, reply) => {                
+        else {
+            client.get(req.params.id, (err, reply) => {
                 if (err) res.json(err);
                 else res.json(reply);
             });
         }
     })
 });
-function ensureToken(req, res, next) {
-    const bearerHeader = req.headers["authorization"];
-    if (typeof bearerHeader !== 'undefined') {
-        const bearer = bearerHeader.split(" ");
-        const bearerToken = bearer[1];
-        req.token = bearerToken;
-        next();
-    } else {
-        res.sendStatus(403);
-    }
-}
+
 
 app.post('/plan', (req, res, next) => {
     console.log(v.validate(req.body, schema));
@@ -104,6 +95,82 @@ app.post('/plan', (req, res, next) => {
         })
     }
 })
+
+app.post('/plan/object',  ensureToken, (req, res, next) => {
+    jwt.verify(req.token, 'my_secret_key', (err, data) => {
+        if (err) {
+            res.sendStatus(403)
+        }
+        else {
+            client.hgetall(req.params.id, (err, reply) => {
+                if (err) res.json(err);
+                else {
+                    console.log(reply)
+                    if (v.validate(req.body, schema).errors.length == 0) {        
+                        var obj = JSON.parse(JSON.stringify(req.body));        
+                        var objectID = obj['objectType'] + '____' + obj['objectId'];
+                        iteratekey(obj, function (err, reply) {
+                            console.log("Reply : " + reply);
+                            console.log("Error : " + err);
+                            if (err) res.send(err);
+                            else res.send({ "reply": reply, "result": "Result successfully posted" });;
+                        });
+                    }
+                    else {
+                        res.send({
+                            "error": "Jason is not validated with schema"
+                        })
+                    }                                       
+                }
+            });
+        }
+    })
+    
+})
+
+var iteratekey = (obj) => {
+    var i = 1;
+    for (var key in obj) {
+        //console.log("In For");
+
+        if (obj[key] instanceof Array) {
+            console.log("instanceof Array");
+            iteratekey(obj[key])
+        }
+        else if (obj[key] instanceof Object) {
+            console.log("instanceof Object");
+            iteratekey(obj[key])
+        } else {
+            console.log("instanceof String");
+            var objectID = obj['objectType'] + '____' + obj['objectId'];
+            console.log(objectID);
+            client.hset(objectID, objectID, JSON.stringify(obj), function (err, reply) {
+                console.log("Reply : " + reply);
+                console.log("Error : " + err);
+                if (err) console.log(err)
+                else console.log("Result successfully posted");
+            });
+        }
+    }
+}
+
+app.get('/plan/object/:id', ensureToken, (req, res, next) => {    
+    jwt.verify(req.token, 'my_secret_key', (err, data) => {
+        if (err) {
+            res.sendStatus(403)
+        }
+        else {
+            client.hgetall(req.params.id, (err, reply) => {
+                if (err) res.json(err);
+                else {
+                    console.log(reply)
+                    res.json(reply);                    
+                }
+            });
+        }
+    })
+});
+
 
 app.delete('/plan/:id', (req, res, next) => {
     console.log(req.params.id)
@@ -141,6 +208,19 @@ app.put('/plan/:id', (req, res, next) => {
         }
     });
 })
+
+function ensureToken(req, res, next) {
+    const bearerHeader = req.headers["authorization"];
+    console.log(bearerHeader)
+    if (typeof bearerHeader !== 'undefined') {
+        const bearer = bearerHeader.split(" ");
+        const bearerToken = bearer[1];
+        req.token = bearerToken;
+        next();
+    } else {
+        res.sendStatus(403);
+    }
+}
 
 
 app.listen(port, () => {
