@@ -61,42 +61,42 @@ app.post('/api/login', (req, res) => {
 })
 
 //Search Page
-app.get('/plan/:id', ensureToken, (req, res, next) => {
-    console.log("Tushar 2")
-    jwt.verify(req.token, 'my_secret_key', (err, data) => {
-        if (err) {
-            res.sendStatus(403)
-        }
-        else {
-            client.get(req.params.id, (err, reply) => {
-                if (err) res.json(err);
-                else res.json(reply);
-            });
-        }
-    })
-});
+// app.get('/plan/:id', ensureToken, (req, res, next) => {
+//     console.log("Tushar 2")
+//     jwt.verify(req.token, 'my_secret_key', (err, data) => {
+//         if (err) {
+//             res.sendStatus(403)
+//         }
+//         else {
+//             client.get(req.params.id, (err, reply) => {
+//                 if (err) res.json(err);
+//                 else res.json(reply);
+//             });
+//         }
+//     })
+// });
 
 
-app.post('/plan', (req, res, next) => {
-    console.log(v.validate(req.body, schema));
-    if (v.validate(req.body, schema).errors.length == 0) {
-        const uuidSave = uuid();
-        console.log(uuidSave);
-        client.set(uuidSave, JSON.stringify(req.body), function (err, reply) {
-            console.log("Reply : " + reply);
-            console.log("Error : " + err);
-            if (err) res.send(err);
-            else res.send({ "reply": reply, "result": "Result successfully posted" });;
-        });
-    }
-    else {
-        res.send({
-            "error": "Jason is not validated with schema"
-        })
-    }
-})
+// app.post('/plan', (req, res, next) => {
+//     console.log(v.validate(req.body, schema));
+//     if (v.validate(req.body, schema).errors.length == 0) {
+//         const uuidSave = uuid();
+//         console.log(uuidSave);
+//         client.set(uuidSave, JSON.stringify(req.body), function (err, reply) {
+//             console.log("Reply : " + reply);
+//             console.log("Error : " + err);
+//             if (err) res.send(err);
+//             else res.send({ "reply": reply, "result": "Result successfully posted" });;
+//         });
+//     }
+//     else {
+//         res.send({
+//             "error": "Jason is not validated with schema"
+//         })
+//     }
+// })
 
-app.post('/plan/object',  ensureToken, (req, res, next) => {
+app.post('/plan/object', ensureToken, (req, res, next) => {
     jwt.verify(req.token, 'my_secret_key', (err, data) => {
         if (err) {
             res.sendStatus(403)
@@ -106,8 +106,8 @@ app.post('/plan/object',  ensureToken, (req, res, next) => {
                 if (err) res.json(err);
                 else {
                     console.log(reply)
-                    if (v.validate(req.body, schema).errors.length == 0) {        
-                        var obj = JSON.parse(JSON.stringify(req.body));        
+                    if (v.validate(req.body, schema).errors.length == 0) {
+                        var obj = JSON.parse(JSON.stringify(req.body));
                         var objectID = obj['objectType'] + '____' + obj['objectId'];
                         iteratekey(obj, function (err, reply) {
                             console.log("Reply : " + reply);
@@ -120,12 +120,12 @@ app.post('/plan/object',  ensureToken, (req, res, next) => {
                         res.send({
                             "error": "Jason is not validated with schema"
                         })
-                    }                                       
+                    }
                 }
             });
         }
     })
-    
+
 })
 
 var iteratekey = (obj) => {
@@ -154,7 +154,7 @@ var iteratekey = (obj) => {
     }
 }
 
-app.get('/plan/object/:id', ensureToken, (req, res, next) => {    
+app.get('/plan/object/:id', ensureToken, (req, res, next) => {
     jwt.verify(req.token, 'my_secret_key', (err, data) => {
         if (err) {
             res.sendStatus(403)
@@ -164,7 +164,7 @@ app.get('/plan/object/:id', ensureToken, (req, res, next) => {
                 if (err) res.json(err);
                 else {
                     console.log(reply)
-                    res.json(reply);                    
+                    res.json(reply);
                 }
             });
         }
@@ -172,41 +172,76 @@ app.get('/plan/object/:id', ensureToken, (req, res, next) => {
 });
 
 
-app.delete('/plan/:id', (req, res, next) => {
+app.delete('/plan/object/:id', ensureToken, (req, res, next) => {
     console.log(req.params.id)
-    client.del(req.params.id, (err, reply) => {
-        console.log("Reply : " + reply);
-        console.log("Error : " + err);
-        if (err) res.send(err);
-        else res.send({ "reply": reply, "result": "Result successfully deleted" });;
+    jwt.verify(req.token, 'my_secret_key', (err, data) => {
+        if (err) {
+            res.sendStatus(403)
+        }
+        else {
+            client.hdel(req.params.id,req.params.id, (err, reply) => {
+                console.log("Reply : " + reply);
+                console.log("Error : " + err);
+                if (err) res.send(err);
+                else res.send({ "reply": reply, "result": "Result successfully deleted" });;
+            })
+        }
     })
+    
 })
 
-app.put('/plan/:id', (req, res, next) => {
+// app.put('/plan/:id', (req, res, next) => {
+//     let id = req.params.id;
+//     console.log(id)
+//     console.log(req.body)
+//     client.get(id, (err, obj) => {
+//         console.log(obj)
+//         if (!obj) {
+//             res.status(500).send({ "error": err })
+//         }
+//         else {
+//             if (v.validate(req.body, schema).errors.length == 0) {
+//                 client.set(id, JSON.stringify(req.body), function (err, reply) {
+//                     console.log("Reply : " + reply);
+//                     console.log("Error : " + err);
+//                     if (err) res.send(err);
+//                     else res.send({ "reply": reply, "result": "Result successfully updated" });
+//                 });
+//             }
+//             else {
+//                 res.send({
+//                     "error": "Json is not validated with schema"
+//                 })
+//             }
+//         }
+//     });
+// })
+
+app.put('/plan/object/:id', ensureToken, (req, res, next) => {
     let id = req.params.id;
     console.log(id)
     console.log(req.body)
-    client.get(id, (err, obj) => {
-        console.log(obj)
-        if (!obj) {
-            res.status(500).send({ "error": err })
+    jwt.verify(req.token, 'my_secret_key', (err, data) => {
+        if (err) {
+            res.sendStatus(403)
         }
         else {
-            if (v.validate(req.body, schema).errors.length == 0) {
-                client.set(id, JSON.stringify(req.body), function (err, reply) {
-                    console.log("Reply : " + reply);
-                    console.log("Error : " + err);
-                    if (err) res.send(err);
-                    else res.send({ "reply": reply, "result": "Result successfully updated" });
-                });
-            }
-            else {
-                res.send({
-                    "error": "Json is not validated with schema"
-                })
-            }
+            client.hget(id, id, (err, obj) => {
+                console.log(obj)
+                if (!obj) {
+                    res.status(500).send({ "error": err })
+                }
+                else {            
+                        client.hset(id, id, JSON.stringify(req.body), function (err, reply) {
+                        console.log("Reply : " + reply);
+                        console.log("Error : " + err);
+                        if (err) res.send(err);
+                        else res.send({ "reply": reply, "result": "Result successfully updated" });
+                    });
+                }
+            });
         }
-    });
+    })    
 })
 
 function ensureToken(req, res, next) {
