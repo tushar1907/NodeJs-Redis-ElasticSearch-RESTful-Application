@@ -97,8 +97,10 @@ app.post('/api/login', (req, res) => {
 // })
 
 app.post('/plan/object', ensureToken, (req, res, next) => {
+    console.log(req.token)
     jwt.verify(req.token, 'my_secret_key', (err, data) => {
         if (err) {
+            console.log(err)
             res.sendStatus(403)
         }
         else {
@@ -108,7 +110,7 @@ app.post('/plan/object', ensureToken, (req, res, next) => {
                     console.log(reply)
                     if (v.validate(req.body, schema).errors.length == 0) {
                         var obj = JSON.parse(JSON.stringify(req.body));
-                        var objectID = obj['objectType'] + '____' + obj['objectId'];
+                        var objectIDmain = obj['objectType'] + '____' + obj['objectId'];
                         iteratekey(obj, function (err, reply) {
                             console.log("Reply : " + reply);
                             console.log("Error : " + err);
@@ -130,20 +132,32 @@ app.post('/plan/object', ensureToken, (req, res, next) => {
 
 var iteratekey = (obj) => {
     var i = 1;
+    var finalKeys = {}
     for (var key in obj) {
         //console.log("In For");
 
-        if (obj[key] instanceof Array) {
-            console.log("instanceof Array");
+        if (obj[key] instanceof Array) { 
+            console.log("instanceof Array");       
+            finalKeys[key] = []    
+            for(let i=0;i<obj[key].length;i++){
+                //console.log("array is here----------->>>"+obj[key][i]['objectType'])                             
+                finalKeys[key].push(obj[key][i]['objectType'] + '____' + obj[key][i]['objectId'])                
+                console.log(finalKeys);
+                iteratekey(obj[key][i])
+            }
+            console.log(finalKeys);                        
             iteratekey(obj[key])
         }
         else if (obj[key] instanceof Object) {
             console.log("instanceof Object");
+            finalKeys[key] = [obj['objectType'] + '____' + obj['objectId']]
+            console.log(finalKeys);
             iteratekey(obj[key])
         } else {
-            console.log("instanceof String");
+            console.log("instanceof not array or not object");
             var objectID = obj['objectType'] + '____' + obj['objectId'];
             console.log(objectID);
+
             client.hset(objectID, objectID, JSON.stringify(obj), function (err, reply) {
                 console.log("Reply : " + reply);
                 console.log("Error : " + err);
@@ -152,6 +166,8 @@ var iteratekey = (obj) => {
             });
         }
     }
+    console.log(finalKeys);
+    
 }
 
 app.get('/plan/object/:id', ensureToken, (req, res, next) => {
