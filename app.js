@@ -1,279 +1,566 @@
+    module.exports = function (app, client) {
+    // Defining modules
+    var async = require('async');
+    var redis = require('redis');
+    var jwt = require('jsonwebtoken');
+    var elasticsearch = require('elasticsearch');
 
-const express = require('express');
-const exphbs = require('express-handlebars');
-const path = require('path');
-const bodyParser = require('body-parser');
-const methodOverride = require('method-override');
-const redis = require('redis');
-var Validator = require('jsonschema').Validator;
-const uuid = require('uuid');
-var v = new Validator();
-const authRoutes = require('./routes/app-routes');
-const passportSetup = require('./config/passport-setup')
-const jwt = require('jsonwebtoken');
-const schema = require('./schema');
+    // Elastic Search
+    var elasticClient = new elasticsearch.Client({  
+        host: 'localhost:9200',
+        log: 'info'
+    });
 
-
-let client = redis.createClient();
-
-client.on('connect', () => {
-    console.log("Connected to redis");
-});
+    
+    var indexName = "planindex";
 
 
-//Set Port
-const port = 3000;
+    // Enabling Strong Etag
+    app.set('etag', 'strong');
 
-//Set app
-const app = express();
+    // Data Validation
+    var Validator = require('jsonschema').Validator;
+    var v = new Validator();
 
-//Set View Engine
-app.engine('handlebars', exphbs({ defaultLayout: 'main' }));
-app.set('view engine', 'handlebars');
-
-//body-Parser
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: false }));
-
-//mwthodOverride
-app.use(methodOverride('method'));
-
-//Set routes
-app.use('/auth', authRoutes);
-
-app.get('/', (req, res) => {
-    console.log("Tushar 1")
-})
-
-
-
-//token generation
-app.post('/api/login', (req, res) => {
-    //auth user
-    const token = jwt.sign({
-        exp: Math.floor(Date.now() / 1000) + (60 * 60)
-    }, "my_secret_key");
-
-    res.send({
-        token: token
-    })
-
-})
-
-//Search Page
-// app.get('/plan/:id', ensureToken, (req, res, next) => {
-//     console.log("Tushar 2")
-//     jwt.verify(req.token, 'my_secret_key', (err, data) => {
-//         if (err) {
-//             res.sendStatus(403)
-//         }
-//         else {
-//             client.get(req.params.id, (err, reply) => {
-//                 if (err) res.json(err);
-//                 else res.json(reply);
-//             });
-//         }
-//     })
-// });
-
-
-// app.post('/plan', (req, res, next) => {
-//     console.log(v.validate(req.body, schema));
-//     if (v.validate(req.body, schema).errors.length == 0) {
-//         const uuidSave = uuid();
-//         console.log(uuidSave);
-//         client.set(uuidSave, JSON.stringify(req.body), function (err, reply) {
-//             console.log("Reply : " + reply);
-//             console.log("Error : " + err);
-//             if (err) res.send(err);
-//             else res.send({ "reply": reply, "result": "Result successfully posted" });;
-//         });
-//     }
-//     else {
-//         res.send({
-//             "error": "Jason is not validated with schema"
-//         })
-//     }
-// })
-
-app.post('/plan/object', ensureToken, (req, res, next) => {
-    console.log(req.token)
-    jwt.verify(req.token, 'my_secret_key', (err, data) => {
-        if (err) {
-            console.log(err)
-            res.sendStatus(403)
-        }
-        else {
-            client.hgetall(req.params.id, (err, reply) => {
-                if (err) res.json(err);
-                else {
-                    console.log(reply)
-                    if (v.validate(req.body, schema).errors.length == 0) {
-                        var obj = JSON.parse(JSON.stringify(req.body));
-                        var objectIDmain = obj['objectType'] + '____' + obj['objectId'];
-                        iteratekey(obj, function (err, reply) {
-                            console.log("Reply : " + reply);
-                            console.log("Error : " + err);
-                            if (err) res.send(err);
-                            else res.send({ "reply": reply, "result": "Result successfully posted" });;
-                        });
-                    }
-                    else {
-                        res.send({
-                            "error": "Jason is not validated with schema"
-                        })
+    // JSON Schema
+    var schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "title": "JSON Schema",
+        "description": "JSON Schema for the Use Case",
+        "type": "object",
+        "properties": {
+            "planCostShares": {
+                "type": "object",
+                "properties": {
+                    "deductible": {
+                        "type": "number"
+                    },
+                    "_org": {
+                        "type": "string"
+                    },
+                    "copay": {
+                        "type": "number"
+                    },
+                    "objectId": {
+                        "type": "string"
+                    },
+                    "objectType": {
+                        "type": "string"
                     }
                 }
-            });
-        }
-    })
-
-})
-
-var iteratekey = (obj) => {
-    var i = 1;
-    var finalKeys = {}
-    for (var key in obj) {
-        //console.log("In For");
-
-        if (obj[key] instanceof Array) { 
-            console.log("instanceof Array");       
-            finalKeys[key] = []    
-            for(let i=0;i<obj[key].length;i++){
-                //console.log("array is here----------->>>"+obj[key][i]['objectType'])                             
-                finalKeys[key].push(obj[key][i]['objectType'] + '____' + obj[key][i]['objectId'])                
-                console.log(finalKeys);
-                iteratekey(obj[key][i])
+            },
+            "linkedPlanServices": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "linkedService": {
+                            "type": "object",
+                            "properties": {
+                                "_org": {
+                                    "type": "string"
+                                },
+                                "objectId": {
+                                    "type": "string"
+                                },
+                                "objectType": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "planserviceCostShares": {
+                            "type": "object",
+                            "properties": {
+                                "deductible": {
+                                    "type": "number"
+                                },
+                                "_org": {
+                                    "type": "string"
+                                },
+                                "copay": {
+                                    "type": "number"
+                                },
+                                "objectId": {
+                                    "type": "string"
+                                },
+                                "objectType": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "_org": {
+                            "type": "string"
+                        },
+                        "objectId": {
+                            "type": "string"
+                        },
+                        "objectType": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "_org": {
+                "type": "string"
+            },
+            "objectId": {
+                "type": "string"
+            },
+            "objectType": {
+                "type": "string"
+            },
+            "planType": {
+                "type": "string"
+            },
+            "creationDate": {
+                "type": "string"
             }
-            console.log(finalKeys);                        
-            iteratekey(obj[key])
-        }
-        else if (obj[key] instanceof Object) {
-            console.log("instanceof Object");
-            finalKeys[key] = [obj['objectType'] + '____' + obj['objectId']]
-            console.log(finalKeys);
-            iteratekey(obj[key])
+            // Testing by updating the JSON Schema
+            // "endDate": {
+            //     "type": "string"
+            // }
+        },
+        "additionalProperties": false
+    };
+
+    
+
+    // Rest API's
+    app.get('/', function (req, res, next) {
+        res.send('Hello from nodejs');
+    });
+
+    app.post('/plan', function (req, res, next) {
+        console.log()
+        if (req.headers.authorization) {
+            var token = req.body.token || req.headers.authorization.split(" ")[1];
         } else {
-            console.log("instanceof not array or not object");
-            var objectID = obj['objectType'] + '____' + obj['objectId'];
-            console.log(objectID);
-
-            client.hset(objectID, objectID, JSON.stringify(obj), function (err, reply) {
-                console.log("Reply : " + reply);
-                console.log("Error : " + err);
-                if (err) console.log(err)
-                else console.log("Result successfully posted");
-            });
+            var token = req.body.token || req.query.token || req.headers['x-access-token'];
         }
-    }
-    console.log(finalKeys);
-    
-}
+        
+        if (token) {
+            jwt.verify(token, new Buffer('thisismytoken', 'base64'), function (err, decoded) {
+                if (err) {
+                    return res.status(401).json({
+                        message: 'Failed to authenticate token : ' + err.message
+                    });
+                } else {
+                    const uuidv1 = require('uuid/v1');
+                    let _id = uuidv1();
 
-app.get('/plan/object/:id', ensureToken, (req, res, next) => {
-    jwt.verify(req.token, 'my_secret_key', (err, data) => {
-        if (err) {
-            res.sendStatus(403)
-        }
-        else {
-            client.hgetall(req.params.id, (err, reply) => {
-                if (err) res.json(err);
-                else {
-                    console.log(reply)
-                    res.json(reply);
+                    let addPlan = req.body;
+
+                    
+                            let errors = v.validate(addPlan, schema).errors;
+                            if (errors.length < 1) {
+
+                                for (let key in addPlan) {
+                                    // check also if property is not inherited from prototype
+                                    if (addPlan.hasOwnProperty(key)) {
+                                        let value = addPlan[key];
+                                        if (typeof (value) == 'object') {
+                                            if (value instanceof Array) {
+                                                for (let i = 0; i < value.length; i++) {
+                                                    let eachValue = value[i];
+                                                    // console.log(eachValue);
+                                                    for (let innerkey in eachValue) {
+                                                        if (eachValue.hasOwnProperty(innerkey)) {
+                                                            let innerValue = eachValue[innerkey];
+                                                            if (typeof (innerValue) == 'object') {
+                                                                client.hmset(_id + "-" + eachValue["objectType"] + "-" + eachValue["objectId"] + "-" + innerkey, innerValue, function (err, result) {
+                                                                    if (err) {
+                                                                        console.log(err);
+                                                                    }
+                                                                });
+                                                                // client.sadd(_id + "-" + eachValue["objectType"]+"-"+eachValue["objectId"]+"-"+innerkey, _id + "-" + innerValue["objectType"]+"-"+innerValue["objectId"]);                                            
+                                                            } else {
+                                                                client.hset(_id + "-" + eachValue["objectType"] + "-" + eachValue["objectId"], innerkey, innerValue, function (err, result) {
+                                                                    if (err) {
+                                                                        console.log(err);
+                                                                    }
+                                                                });
+
+                                                                // MAKE SURE YOU UNCOMMENT THIS.
+                                                                client.sadd(_id + "-" + addPlan["objectType"] + "-" + addPlan["objectId"] + "-" + key, _id + "-" + eachValue["objectType"] + "-" + eachValue["objectId"]);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                for (let innerkey in value) {
+                                                    let innerValue = value[innerkey];
+                                                    client.hmset(_id + "-" + addPlan["objectType"] + "-" + addPlan["objectId"] + "-" + key, value, function (err, result) {
+                                                        if (err) {
+                                                            console.log(err);
+                                                        }
+                                                    });
+                                                    // client.sadd(_id + "-" + addPlan["objectType"]+"-"+addPlan["objectId"]+"-"+key, _id + "-" + value["objectType"]+"-"+value["objectId"]);
+                                                }
+                                            }
+                                        } else {
+                                            client.hset(_id + "-" + addPlan["objectType"] + "-" + addPlan["objectId"], key, value, function (err, result) {
+                                                if (err) {
+                                                    console.log(err);
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+
+                                client.lpush("queue", JSON.stringify(addPlan));
+
+                                client.brpoplpush("queue", "backupQueue", 0, handleJob);
+
+                                function handleJob(err, data) {
+                                    if(err) {
+                                        console.log(err);
+                                    } else {                            
+                                        createIndex(req, res, data);
+                                    }
+                                }
+                            
+                                function createIndex(req, res, data) {
+                                    elasticClient.indices.exists({
+                                        index: indexName
+                                    }).then(function(resp) {
+                                        if(!resp) {
+                                            elasticClient.indices.create({
+                                                index: indexName
+                                            }).then(function(resp) {
+                                                elasticClient.index({
+                                                    index: indexName,
+                                                    type: 'plan',
+                                                    id: _id,
+                                                    body: data
+                                                }).then(function(resp) {
+                                                    let response = resp;
+                                                }, function(err) {
+                                                    console.log(err);
+                                                });
+                                            }, function(err) {
+                                                console.log(err);
+                                            });
+                                        } else {
+                                            elasticClient.index({
+                                                index: indexName,
+                                                type: 'plan',
+                                                id: _id,
+                                                body: data
+                                            }).then(function(resp) {
+                                                let response = resp;
+                                            }, function(err) {
+                                                console.log(err);
+                                            });
+                                        }
+                                    }, function(err) {
+                                        console.log(err);
+                                    });
+                                }                                
+                                
+
+                                res.status(201).send("The key of the newly created plan is: " + _id);                                
+                            } else {
+                                var errorArray = [];
+                                for (let i = 0; i < errors.length; i++) {
+                                    errorArray.push(errors[i].stack);
+                                }
+                                res.status(400).send(errorArray);
+                            }
+                    
                 }
             });
+        } else {
+            return res.status(404).send({
+                message: 'No token provided'
+            });
         }
-    })
-});
+    });
 
 
-app.delete('/plan/object/:id', ensureToken, (req, res, next) => {
-    console.log(req.params.id)
-    jwt.verify(req.token, 'my_secret_key', (err, data) => {
-        if (err) {
-            res.sendStatus(403)
+    // Retrieve plan details using plan id
+    app.get('/plan/:planId', function (req, res, next) {
+        if (req.headers.authorization) {
+            var token = req.body.token || req.headers.authorization.split(" ")[1];
+        } else {
+            var token = req.body.token || req.query.token || req.headers['x-access-token'];
         }
-        else {
-            client.hdel(req.params.id,req.params.id, (err, reply) => {
-                console.log("Reply : " + reply);
-                console.log("Error : " + err);
-                if (err) res.send(err);
-                else res.send({ "reply": reply, "result": "Result successfully deleted" });;
-            })
-        }
-    })
-    
-})
+        if (token) {
+            jwt.verify(token, new Buffer('thisismytoken', 'base64'), function (err, decoded) {
+                if (err) {
+                    return res.status(401).json({
+                        message: 'Failed to authenticate token : ' + err.message
+                    });
+                } else {
+                    let planId = req.params.planId;
+                    // console.log(planId);
 
-// app.put('/plan/:id', (req, res, next) => {
-//     let id = req.params.id;
-//     console.log(id)
-//     console.log(req.body)
-//     client.get(id, (err, obj) => {
-//         console.log(obj)
-//         if (!obj) {
-//             res.status(500).send({ "error": err })
-//         }
-//         else {
-//             if (v.validate(req.body, schema).errors.length == 0) {
-//                 client.set(id, JSON.stringify(req.body), function (err, reply) {
-//                     console.log("Reply : " + reply);
-//                     console.log("Error : " + err);
-//                     if (err) res.send(err);
-//                     else res.send({ "reply": reply, "result": "Result successfully updated" });
-//                 });
-//             }
-//             else {
-//                 res.send({
-//                     "error": "Json is not validated with schema"
-//                 })
-//             }
-//         }
-//     });
-// })
+                    var plan = {};
+                    plan["linkedPlanServices"] = [];
+                    var linkedPlanServices = {};
 
-app.put('/plan/object/:id', ensureToken, (req, res, next) => {
-    let id = req.params.id;
-    console.log(id)
-    console.log(req.body)
-    jwt.verify(req.token, 'my_secret_key', (err, data) => {
-        if (err) {
-            res.sendStatus(403)
-        }
-        else {
-            client.hget(id, id, (err, obj) => {
-                console.log(obj)
-                if (!obj) {
-                    res.status(500).send({ "error": err })
-                }
-                else {            
-                        client.hset(id, id, JSON.stringify(req.body), function (err, reply) {
-                        console.log("Reply : " + reply);
-                        console.log("Error : " + err);
-                        if (err) res.send(err);
-                        else res.send({ "reply": reply, "result": "Result successfully updated" });
+                    // client.hgetall(planId , (err,result)=>{
+                    //     res.status(200).json(result);
+                    // })
+                     
+                    client.keys(planId + '*', function (err, plans) {
+                        if (plans.length > 0) {
+                            var keys = Object.keys(plans.sort());
+                            var i = 0;
+                            var l = 0;
+                            keys.forEach(function (k) {
+                                client.hgetall(plans[k], function (err, result) {
+                                    i++;
+                                    console.log(plans[k])
+                                    console.log(result)
+                                    if (plans[k].indexOf("planCostShares") > -1 && typeof (result) != "undefined") {
+                                        console.log("586")
+                                        plan["planCostShares"] = result;
+                                    }
+
+                                    if (plans[k].startsWith(planId + "-planservice-") && plans[k].indexOf("linkedService") < 0 && plans[k].indexOf("planserviceCostShares") < 0 && typeof (result) != "undefined") {
+                                        var resultKeys = Object.keys(result);
+                                        var resultValues = Object.values(result);
+                                        console.log("593")
+                                        for (var j = 0; j < resultKeys.length; j++) {
+                                            console.log("595")
+                                            linkedPlanServices[resultKeys[j]] = resultValues[j];
+                                        }
+                                    }
+
+                                    if (plans[k].startsWith(planId + "-planservice-") && plans[k].indexOf("linkedService") > -1 && typeof (result) != "undefined") {
+                                        linkedPlanServices["linkedService"] = result;
+                                        console.log("602")
+                                        if (linkedPlanServices["linkedService"] != undefined && linkedPlanServices["planserviceCostShares"] != undefined) {
+                                            plan["linkedPlanServices"][l] = linkedPlanServices;
+                                            l++;
+                                            console.log("606")
+                                            linkedPlanServices = {};
+                                        }
+                                    }
+
+                                    if (plans[k].startsWith(planId + "-planservice-") && plans[k].indexOf("planserviceCostShares") > -1 && typeof (result) != "undefined") {
+                                        linkedPlanServices["planserviceCostShares"] = result;
+                                        console.log("613")
+                                        if (linkedPlanServices["linkedService"] != undefined && linkedPlanServices["planserviceCostShares"] != undefined) {
+                                            plan["linkedPlanServices"][l] = linkedPlanServices;
+                                            l++;
+                                            console.log("617")
+                                            linkedPlanServices = {};
+                                        }
+                                    }
+
+                                    if (plans[k].startsWith(planId + "-plan-") && plans[k].indexOf("planCostShares") < 0 && typeof (result) != "undefined") {
+                                        var resultKeys = Object.keys(result);
+                                        var resultValues = Object.values(result);
+                                        console.log("625")
+                                        for (var j = 0; j < resultKeys.length; j++) {
+                                            console.log("627")
+                                            plan[resultKeys[j]] = resultValues[j];
+                                        }
+                                    }
+
+                                    if (i == keys.length) {
+                                        console.log("633")                                        
+                                        res.status(200).json(plan);
+                                    }
+                                });
+                            });
+                        } else {
+                            res.status(404).send("Plan Id " + planId + " does not exists");
+                        }
                     });
                 }
             });
+        } else {
+            return res.status(404).send({
+                message: 'No token provided'
+            });
         }
-    })    
-})
+    });
 
-function ensureToken(req, res, next) {
-    const bearerHeader = req.headers["authorization"];
-    console.log(bearerHeader)
-    if (typeof bearerHeader !== 'undefined') {
-        const bearer = bearerHeader.split(" ");
-        const bearerToken = bearer[1];
-        req.token = bearerToken;
-        next();
-    } else {
-        res.sendStatus(403);
-    }
-}
+    // Update an existing plan
+    app.put('/plan/:planId', function (req, res, next) {
+        
+        if (req.headers.authorization) {
+            var token = req.body.token || req.headers.authorization.split(" ")[1];
+        } else {
+            var token = req.body.token || req.query.token || req.headers['x-access-token'];
+        }
+        if (token) {
+            jwt.verify(token, new Buffer('thisismytoken', 'base64'), function (err, decoded) {
+                if (err) {
+                    return res.status(401).json({
+                        message: 'Failed to authenticate token : ' + err.message
+                    });
+                } else {
+                    let planId = req.params.planId;
+                    let addPlan = req.body;                 
+
+                            
+                                client.keys(planId + "*", function (err, result) {
+                                    if (err) {
+                                        console.log(err);
+                                    }
+                                    if (result.length > 0) {
+                                        client.del(result, function (err, deleted) {
+                                            if (err) {
+                                                console.log(err);
+                                            }
+                                            if (deleted) {
+                                                for (let key in addPlan) {
+                                                    // check also if property is not inherited from prototype
+                                                    if (addPlan.hasOwnProperty(key)) {
+                                                        let value = addPlan[key];
+                                                        if (typeof (value) == 'object') {
+                                                            if (value instanceof Array) {
+                                                                for (let i = 0; i < value.length; i++) {
+                                                                    let eachValue = value[i];
+                                                                    // console.log(eachValue);
+                                                                    for (let innerkey in eachValue) {
+                                                                        if (eachValue.hasOwnProperty(innerkey)) {
+                                                                            let innerValue = eachValue[innerkey];
+                                                                            if (typeof (innerValue) == 'object') {
+                                                                                client.hmset(planId + "-" + eachValue["objectType"] + "-" + eachValue["objectId"] + "-" + innerkey, innerValue, function (err, result) {
+                                                                                    if (err) {
+                                                                                        console.log(err);
+                                                                                    }
+                                                                                });
+                                                                                // client.sadd(planId + "-" + eachValue["objectType"]+"-"+eachValue["objectId"]+"-"+innerkey, planId + "-" + innerValue["objectType"]+"-"+innerValue["objectId"]);                                            
+                                                                            } else {
+                                                                                client.hset(planId + "-" + eachValue["objectType"] + "-" + eachValue["objectId"], innerkey, innerValue, function (err, result) {
+                                                                                    if (err) {
+                                                                                        console.log(err);
+                                                                                    }
+                                                                                });
+
+                                                                                // MAKE SURE YOU UNCOMMENT THIS.
+                                                                                client.sadd(planId + "-" + addPlan["objectType"] + "-" + addPlan["objectId"] + "-" + key, planId + "-" + eachValue["objectType"] + "-" + eachValue["objectId"]);
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                for (let innerkey in value) {
+                                                                    let innerValue = value[innerkey];
+                                                                    client.hmset(planId + "-" + addPlan["objectType"] + "-" + addPlan["objectId"] + "-" + key, value, function (err, result) {
+                                                                        if (err) {
+                                                                            console.log(err);
+                                                                        }
+                                                                    });
+                                                                    // client.sadd(planId + "-" + addPlan["objectType"]+"-"+addPlan["objectId"]+"-"+key, planId + "-" + value["objectType"]+"-"+value["objectId"]);
+                                                                }
+                                                            }
+                                                        } else {
+                                                            client.hset(planId, key, value, function (err, result) {
+                                                                if (err) {
+                                                                    console.log(err);
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                elasticClient.index({
+                                                    index: indexName,
+                                                    type: 'plan',
+                                                    id: planId,
+                                                    body: addPlan
+                                                }).then(function(resp) {
+                                                    let response = resp;
+                                                }, function(err) {
+                                                    console.log(err);
+                                                });
+
+                                                res.status(200).send("The keys of the plan id " + planId + " are updated");
+                                            } else {
+                                                res.status(404).send("Plan Id " + planId + " does not exists");
+                                            }
+                                        });
+                                    } else {
+                                        res.status(404).send("Plan Id " + planId + " does not exists");
+                                    }
+                                });                           
+                        
+                }
+            });
+        } else {
+            return res.status(404).send({
+                message: 'No token provided'
+            });
+        }
+    });
+
+    // Delete plan using plan id
+    app.delete('/plan/:planId', function (req, res, next) {
+        if (req.headers.authorization) {
+            var token = req.body.token || req.headers.authorization.split(" ")[1];
+        } else {
+            var token = req.body.token || req.query.token || req.headers['x-access-token'];
+        }
+        if (token) {
+            jwt.verify(token, new Buffer('thisismytoken', 'base64'), function (err, decoded) {
+                if (err) {
+                    return res.status(401).json({
+                        message: 'Failed to authenticate token : ' + err.message
+                    });
+                } else {
+                    let planId = req.params.planId;
+
+                    client.keys(planId + "*", function (err, result) {
+                        if (err) {
+                            console.log(err);
+                        }
+                        if (result.length > 0) {
+                            client.del(result, function (err, deleted) {
+                                if (err) {
+                                    console.log(err);
+                                }
+                                if (deleted) {
+
+                                    elasticClient.delete({
+                                        index: indexName,
+                                        type: 'plan',
+                                        id: planId
+                                    }).then(function(resp) {
+                                        let response = resp;
+                                    }, function(err) {
+                                        console.log(err);
+                                    });
+
+                                    res.status(200).send("All the keys with Plan Id " + planId + " are deleted");
+                                } else {
+                                    res.status(404).send("Plan Id " + planId + " does not exists");
+                                }
+                            });
+                        } else {
+                            res.status(404).send("Plan Id " + planId + " does not exists");
+                        }
+                    });
+                }
+            });
+        } else {
+            return res.status(404).send({
+                message: 'No token provided'
+            });
+        }
+    });
+
+    // Generate Token
+    app.post('/token', function (req, res, next) {
+        jwt.sign({
+            'tokenCreator': "Tushar"
+        }, new Buffer('thisismytoken', 'base64'), {
+            expiresIn: 10000000000 
+        }, function (err, token) {
+            res.status(201).json({
+                message: 'The token has been generated',
+                token: token
+            });
+        });
+    });
 
 
-app.listen(port, () => {
-    console.log("Server started at " + port);
-})
+};
